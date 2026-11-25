@@ -7,7 +7,8 @@
   "scripts": {
     "dev": "tsx watch src/presentation/server.ts",
     "start": "tsx src/presentation/server.ts",
-    "test": "vitest run"
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
   },
   "repository": {
     "type": "git",

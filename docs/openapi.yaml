@@ -3,157 +3,693 @@ info:
   title: SmartPark Enterprise API
   version: 1.0.0
   description: >
-    API REST del monolito en capas para reserva de plazas, check-in con tolerancia de 15 minutos,
-    check-out con cálculo de tarifa y gestión de plazas/tarifas dinámicas.
+    Contrato REST del monolito en capas (Presentación, Aplicación y Persistencia) para la gestión
+    de plazas, reservas sin traslapes horarios (CU-01 / R-01), check-in con tolerancia de 15 minutos
+    (CU-02 / R-02), check-out con cálculo tarifario y recargo por exceso (CU-03), y administración
+    de plazas y tarifas dinámicas (CU-04).
+
 servers:
   - url: http://localhost:3000/api/v1
     description: Servidor local de desarrollo
 
+tags:
+  - name: Sistema
+    description: Verificación de salud del servicio
+  - name: Plazas
+    description: Consulta en tiempo real y creación de plazas (CU-04)
+  - name: Reservas
+    description: Reserva de espacios con control de traslapes y concurrencia (CU-01 / R-01)
+  - name: Estancias
+    description: Registro de ingreso y salida de vehículos (CU-02 / R-02 y CU-03)
+  - name: Tarifas
+    description: Configuración de tarifas dinámicas por sede y franja horaria (CU-04)
+
 paths:
   /health:
     get:
+      tags: [Sistema]
       summary: Verificar estado del servicio
       responses:
         "200":
           description: Servicio activo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+              example:
+                status: "ok"
+                servicio: "SmartPark Enterprise API"
 
   /plazas:
     get:
-      summary: Consultar y filtrar plazas de parqueo
+      tags: [Plazas]
+      summary: Consultar y filtrar plazas de parqueo en tiempo real
       parameters:
         - in: query
           name: sedeId
+          required: false
+          description: Identificador numérico entero positivo de la sede
           schema:
             type: integer
+            minimum: 1
+          example: 1
         - in: query
           name: estado
+          required: false
+          description: Filtrar por estado actual de la plaza
           schema:
             type: string
             enum: [DISPONIBLE, RESERVADA, OCUPADA]
+          example: "DISPONIBLE"
       responses:
         "200":
           description: Lista de plazas consultadas
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListaPlazasResponse"
+              example:
+                total: 2
+                plazas:
+                  - id: 1
+                    sede_id: 1
+                    codigo: "A-01"
+                    tipo_vehiculo: "AUTO"
+                    estado: "DISPONIBLE"
+                  - id: 2
+                    sede_id: 1
+                    codigo: "A-02"
+                    tipo_vehiculo: "AUTO"
+                    estado: "RESERVADA"
+        "400":
+          description: Parámetro de consulta inválido (PARAMETRO_INVALIDO o ESTADO_INVALIDO)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                parametroInvalido:
+                  value:
+                    error: "PARAMETRO_INVALIDO"
+                    mensaje: "sedeId debe ser numérico"
+                estadoInvalido:
+                  value:
+                    error: "ESTADO_INVALIDO"
+                    mensaje: "estado inválido; valores permitidos: DISPONIBLE, RESERVADA, OCUPADA"
+        "500":
+          $ref: "#/components/responses/ErrorInterno"
+
     post:
+      tags: [Plazas]
       summary: Crear una nueva plaza en una sede (CU-04)
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              required: [sedeId, codigo, tipoVehiculo]
-              properties:
-                sedeId:
-                  type: integer
-                  example: 1
-                codigo:
-                  type: string
-                  example: "A-03"
-                tipoVehiculo:
-                  type: string
-                  example: "AUTO"
+              $ref: "#/components/schemas/CrearPlazaRequest"
+            example:
+              sedeId: 1
+              codigo: "A-03"
+              tipoVehiculo: "AUTO"
       responses:
         "201":
-          description: Plaza creada
+          description: Plaza creada exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CrearPlazaResponse"
+              example:
+                plaza:
+                  id: 4
+                  sede_id: 1
+                  codigo: "A-03"
+                  tipo_vehiculo: "AUTO"
+                  estado: "DISPONIBLE"
+        "400":
+          description: Datos de entrada incompletos o inválidos (DATOS_INCOMPLETOS o PARAMETRO_INVALIDO)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: "DATOS_INCOMPLETOS"
+                mensaje: "sedeId, codigo y tipoVehiculo son obligatorios"
+        "404":
+          description: Sede no encontrada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: "SEDE_NO_ENCONTRADA"
+                mensaje: "La sede indicada no existe"
+        "409":
+          description: Ya existe una plaza con ese código en la sede
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: "PLAZA_DUPLICADA"
+                mensaje: "Ya existe una plaza con el código A-03 en esa sede"
+        "500":
+          $ref: "#/components/responses/ErrorInterno"
 
   /reservas:
     post:
+      tags: [Reservas]
       summary: Reservar espacio de parqueo evitando traslapes (CU-01 / R-01)
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              required: [plazaId, placaVehiculo, horaInicio, horaFin]
-              properties:
-                plazaId:
-                  type: integer
-                  example: 1
-                placaVehiculo:
-                  type: string
-                  example: "ABC-1234"
-                horaInicio:
-                  type: string
-                  format: date-time
-                  example: "2026-11-25T10:00:00.000Z"
-                horaFin:
-                  type: string
-                  format: date-time
-                  example: "2026-11-25T12:00:00.000Z"
+              $ref: "#/components/schemas/CrearReservaRequest"
+            example:
+              plazaId: 1
+              placaVehiculo: "ABC-1234"
+              horaInicio: "2026-11-25T10:00:00.000Z"
+              horaFin: "2026-11-25T12:00:00.000Z"
       responses:
         "201":
           description: Reserva confirmada y evento Reserva_Realizada emitido
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CrearReservaResponse"
+              example:
+                reserva:
+                  id: 10
+                  plaza_id: 1
+                  codigo_reserva: "SP-MI4X9A-1-K2P8"
+                  placa_vehiculo: "ABC-1234"
+                  hora_inicio: "2026-11-25T10:00:00.000Z"
+                  hora_fin: "2026-11-25T12:00:00.000Z"
+                  tarifa_base_aplicada: 1.5
+                  multiplicador_aplicado: 1.5
+                  estado: "CONFIRMADA"
+                eventoDominio: "Reserva_Realizada"
+        "400":
+          description: Datos incompletos, parámetro inválido o rango horario inválido
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                datosIncompletos:
+                  value:
+                    error: "DATOS_INCOMPLETOS"
+                    mensaje: "plazaId, placaVehiculo, horaInicio y horaFin son obligatorios"
+                rangoInvalido:
+                  value:
+                    error: "RANGO_INVALIDO"
+                    mensaje: "Rango horario inválido para la reserva"
+        "404":
+          description: La plaza indicada no existe
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: "PLAZA_NO_ENCONTRADA"
+                mensaje: "La plaza indicada no existe"
         "409":
-          description: Conflicto por traslape horario en la plaza
+          description: Conflicto por traslape horario; incluye sugerencias de plazas alternativas disponibles
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: "CONFLICTO_RESERVA"
+                mensaje: "La plaza ya tiene una reserva confirmada en ese rango horario (conflicto de concurrencia)"
+                detalles:
+                  sugerenciasAlternativas:
+                    - id: 2
+                      sede_id: 1
+                      codigo: "A-02"
+                      tipo_vehiculo: "AUTO"
+                      estado: "DISPONIBLE"
+        "500":
+          $ref: "#/components/responses/ErrorInterno"
 
   /estancias/check-in:
     post:
+      tags: [Estancias]
       summary: Registrar ingreso de vehículo con tolerancia de 15 minutos (CU-02 / R-02)
+      description: >
+        Permite validar la reserva enviando `codigoReserva` y/o `placaVehiculo`. Si ambos se envían,
+        se verifica coincidencia exacta de placa. Si pasaron más de 15 minutos desde `hora_inicio`,
+        la reserva pasa a `CADUCADA` y la plaza vuelve a `DISPONIBLE`.
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              required: [codigoReserva, placaVehiculo]
-              properties:
-                codigoReserva:
-                  type: string
-                  example: "SP-123456-1"
-                placaVehiculo:
-                  type: string
-                  example: "ABC-1234"
+              $ref: "#/components/schemas/CheckInRequest"
+            example:
+              codigoReserva: "SP-MI4X9A-1-K2P8"
+              placaVehiculo: "ABC-1234"
       responses:
         "201":
-          description: Ingreso registrado y puesto marcado como OCUPADO
+          description: Ingreso registrado, plaza marcada como OCUPADA y evento Vehiculo_Ingresado emitido
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CheckInResponse"
+              example:
+                estancia:
+                  id: 5
+                  reserva_id: 10
+                  plaza_id: 1
+                  placa_vehiculo: "ABC-1234"
+                  check_in_en: "2026-11-25T10:05:00.000Z"
+                  check_out_en: null
+                  monto_calculado: null
+                  estado: "ACTIVA"
+                eventoDominio: "Vehiculo_Ingresado"
+        "400":
+          description: Datos faltantes o placa no coincide con la reserva
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                datosIncompletos:
+                  value:
+                    error: "DATOS_INCOMPLETOS"
+                    mensaje: "Debe enviar codigoReserva o placaVehiculo"
+                placaNoCoincide:
+                  value:
+                    error: "PLACA_NO_COINCIDE"
+                    mensaje: "La placa no coincide con la reserva"
+        "404":
+          description: Reserva no encontrada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: "RESERVA_NO_ENCONTRADA"
+                mensaje: "Reserva no encontrada"
         "409":
-          description: Reserva caducada por superar 15 minutos o estado inválido
+          description: Reserva caducada, estado no confirmado o estancia ya activa
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                reservaCaducada:
+                  value:
+                    error: "RESERVA_CADUCADA"
+                    mensaje: "Se superó la tolerancia de 15 minutos; la reserva caducó y se liberó el puesto"
+                reservaNoConfirmada:
+                  value:
+                    error: "RESERVA_NO_CONFIRMADA"
+                    mensaje: "La reserva no está activa para ingreso (estado actual: COMPLETADA)"
+                estanciaActiva:
+                  value:
+                    error: "ESTANCIA_YA_ACTIVA"
+                    mensaje: "El vehículo ya registra una estancia activa"
+        "500":
+          $ref: "#/components/responses/ErrorInterno"
 
   /estancias/check-out:
     post:
-      summary: Registrar salida, calcular tarifa y liberar puesto (CU-03)
+      tags: [Estancias]
+      summary: Registrar salida, calcular tarifa (con recargo por exceso si aplica) y liberar puesto (CU-03)
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              required: [placaVehiculo]
-              properties:
-                placaVehiculo:
-                  type: string
-                  example: "ABC-1234"
+              $ref: "#/components/schemas/CheckOutRequest"
+            example:
+              placaVehiculo: "ABC-1234"
       responses:
         "200":
-          description: Salida registrada, tarifa calculada y puesto DISPONIBLE
+          description: Salida registrada, tarifa calculada y plaza liberada a DISPONIBLE
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CheckOutResponse"
+              example:
+                estancia:
+                  id: 5
+                  reserva_id: 10
+                  plaza_id: 1
+                  placa_vehiculo: "ABC-1234"
+                  check_in_en: "2026-11-25T10:05:00.000Z"
+                  check_out_en: "2026-11-25T12:15:00.000Z"
+                  monto_calculado: 6.75
+                  estado: "FINALIZADA"
+                horasCobrables: 3
+                horasExceso: 1
+                recargoExceso: 2.25
+                montoCalculado: 6.75
+                eventoDominio: "Vehiculo_Salio"
+        "400":
+          description: Placa obligatoria faltante
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: "DATOS_INCOMPLETOS"
+                mensaje: "placaVehiculo es obligatorio"
+        "404":
+          description: No existe estancia activa para esa placa
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: "ESTANCIA_NO_ENCONTRADA"
+                mensaje: "No existe una estancia activa para esa placa"
+        "500":
+          $ref: "#/components/responses/ErrorInterno"
 
   /tarifas:
     put:
-      summary: Configurar tarifa base y multiplicador por sede (CU-04)
+      tags: [Tarifas]
+      summary: Configurar tarifa base, franja pico y multiplicador por sede (CU-04)
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              required: [sedeId, franjaInicio, franjaFin, tarifaBase, multiplicadorPico]
-              properties:
-                sedeId:
-                  type: integer
-                  example: 1
-                franjaInicio:
-                  type: string
-                  example: "07:00:00"
-                franjaFin:
-                  type: string
-                  example: "19:00:00"
-                tarifaBase:
-                  type: number
-                  example: 2.0
-                multiplicadorPico:
-                  type: number
-                  example: 1.5
+              $ref: "#/components/schemas/ConfigurarTarifaRequest"
+            example:
+              sedeId: 1
+              franjaInicio: "07:00:00"
+              franjaFin: "19:00:00"
+              tarifaBase: 2.0
+              multiplicadorPico: 1.5
       responses:
         "200":
-          description: Tarifa actualizada para futuras reservas
+          description: Tarifa actualizada para futuras reservas (sin afectar reservas previas)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConfigurarTarifaResponse"
+              example:
+                tarifa:
+                  id: 1
+                  sede_id: 1
+                  franja_inicio: "07:00:00"
+                  franja_fin: "19:00:00"
+                  tarifa_base: 2.0
+                  multiplicador_pico: 1.5
+                nota: "Las reservas ya confirmadas mantienen sus condiciones previas"
+        "400":
+          description: Datos incompletos, tarifa inválida o franja horaria inválida
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                tarifaInvalida:
+                  value:
+                    error: "TARIFA_INVALIDA"
+                    mensaje: "La tarifa base debe ser >= 0 y el multiplicador >= 1"
+                rangoInvalido:
+                  value:
+                    error: "RANGO_INVALIDO"
+                    mensaje: "La franja horaria debe tener formato HH:MM[:SS] con franjaFin mayor que franjaInicio"
+        "404":
+          description: Sede no encontrada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: "SEDE_NO_ENCONTRADA"
+                mensaje: "La sede indicada no existe"
+        "500":
+          $ref: "#/components/responses/ErrorInterno"
+
+components:
+  responses:
+    ErrorInterno:
+      description: Error inesperado del servidor
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error: "ERROR_INTERNO"
+            mensaje: "Ocurrió un error interno en el servidor"
+
+  schemas:
+    HealthResponse:
+      type: object
+      required: [status, servicio]
+      properties:
+        status:
+          type: string
+          example: "ok"
+        servicio:
+          type: string
+          example: "SmartPark Enterprise API"
+
+    Plaza:
+      type: object
+      required: [id, sede_id, codigo, tipo_vehiculo, estado]
+      properties:
+        id:
+          type: integer
+        sede_id:
+          type: integer
+        codigo:
+          type: string
+        tipo_vehiculo:
+          type: string
+        estado:
+          type: string
+          enum: [DISPONIBLE, RESERVADA, OCUPADA]
+
+    Reserva:
+      type: object
+      required:
+        - id
+        - plaza_id
+        - codigo_reserva
+        - placa_vehiculo
+        - hora_inicio
+        - hora_fin
+        - tarifa_base_aplicada
+        - multiplicador_aplicado
+        - estado
+      properties:
+        id:
+          type: integer
+        plaza_id:
+          type: integer
+        codigo_reserva:
+          type: string
+        placa_vehiculo:
+          type: string
+        hora_inicio:
+          type: string
+          format: date-time
+        hora_fin:
+          type: string
+          format: date-time
+        tarifa_base_aplicada:
+          type: number
+        multiplicador_aplicado:
+          type: number
+        estado:
+          type: string
+          enum: [CONFIRMADA, CADUCADA, COMPLETADA, CANCELADA]
+
+    Estancia:
+      type: object
+      required: [id, reserva_id, plaza_id, placa_vehiculo, check_in_en, estado]
+      properties:
+        id:
+          type: integer
+        reserva_id:
+          type: integer
+          nullable: true
+        plaza_id:
+          type: integer
+        placa_vehiculo:
+          type: string
+        check_in_en:
+          type: string
+          format: date-time
+        check_out_en:
+          type: string
+          format: date-time
+          nullable: true
+        monto_calculado:
+          type: number
+          nullable: true
+        estado:
+          type: string
+          enum: [ACTIVA, FINALIZADA]
+
+    TarifaDinamica:
+      type: object
+      required: [id, sede_id, franja_inicio, franja_fin, tarifa_base, multiplicador_pico]
+      properties:
+        id:
+          type: integer
+        sede_id:
+          type: integer
+        franja_inicio:
+          type: string
+        franja_fin:
+          type: string
+        tarifa_base:
+          type: number
+        multiplicador_pico:
+          type: number
+
+    ListaPlazasResponse:
+      type: object
+      required: [total, plazas]
+      properties:
+        total:
+          type: integer
+        plazas:
+          type: array
+          items:
+            $ref: "#/components/schemas/Plaza"
+
+    CrearPlazaRequest:
+      type: object
+      required: [sedeId, codigo, tipoVehiculo]
+      properties:
+        sedeId:
+          type: integer
+          minimum: 1
+        codigo:
+          type: string
+        tipoVehiculo:
+          type: string
+
+    CrearPlazaResponse:
+      type: object
+      required: [plaza]
+      properties:
+        plaza:
+          $ref: "#/components/schemas/Plaza"
+
+    CrearReservaRequest:
+      type: object
+      required: [plazaId, placaVehiculo, horaInicio, horaFin]
+      properties:
+        plazaId:
+          type: integer
+          minimum: 1
+        placaVehiculo:
+          type: string
+        horaInicio:
+          type: string
+          format: date-time
+        horaFin:
+          type: string
+          format: date-time
+
+    CrearReservaResponse:
+      type: object
+      required: [reserva, eventoDominio]
+      properties:
+        reserva:
+          $ref: "#/components/schemas/Reserva"
+        eventoDominio:
+          type: string
+          example: "Reserva_Realizada"
+
+    CheckInRequest:
+      type: object
+      description: Requiere al menos uno de `codigoReserva` o `placaVehiculo`.
+      properties:
+        codigoReserva:
+          type: string
+        placaVehiculo:
+          type: string
+
+    CheckInResponse:
+      type: object
+      required: [estancia, eventoDominio]
+      properties:
+        estancia:
+          $ref: "#/components/schemas/Estancia"
+        eventoDominio:
+          type: string
+          example: "Vehiculo_Ingresado"
+
+    CheckOutRequest:
+      type: object
+      required: [placaVehiculo]
+      properties:
+        placaVehiculo:
+          type: string
+
+    CheckOutResponse:
+      type: object
+      required:
+        - estancia
+        - horasCobrables
+        - horasExceso
+        - recargoExceso
+        - montoCalculado
+        - eventoDominio
+      properties:
+        estancia:
+          $ref: "#/components/schemas/Estancia"
+        horasCobrables:
+          type: integer
+        horasExceso:
+          type: integer
+        recargoExceso:
+          type: number
+        montoCalculado:
+          type: number
+        eventoDominio:
+          type: string
+          example: "Vehiculo_Salio"
+
+    ConfigurarTarifaRequest:
+      type: object
+      required: [sedeId, franjaInicio, franjaFin, tarifaBase, multiplicadorPico]
+      properties:
+        sedeId:
+          type: integer
+          minimum: 1
+        franjaInicio:
+          type: string
+          example: "07:00:00"
+        franjaFin:
+          type: string
+          example: "19:00:00"
+        tarifaBase:
+          type: number
+          minimum: 0
+        multiplicadorPico:
+          type: number
+          minimum: 1
+
+    ConfigurarTarifaResponse:
+      type: object
+      required: [tarifa, nota]
+      properties:
+        tarifa:
+          $ref: "#/components/schemas/TarifaDinamica"
+        nota:
+          type: string
+
+    ErrorResponse:
+      type: object
+      required: [error, mensaje]
+      properties:
+        error:
+          type: string
+        mensaje:
+          type: string
+        detalles:
+          type: object
+          nullable: true

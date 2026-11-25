@@ -19,11 +19,14 @@ router.get("/health", (_req: Request, res: Response) => {
 // Consulta y filtrado de plazas en tiempo real
 router.get("/plazas", async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const sedeId = req.query.sedeId ? Number(req.query.sedeId) : undefined;
-    const estado = typeof req.query.estado === "string" ? req.query.estado.toUpperCase() : undefined;
+    const sedeId = req.query.sedeId !== undefined ? Number(req.query.sedeId) : undefined;
+    const estado =
+      typeof req.query.estado === "string" && req.query.estado.trim() !== ""
+        ? req.query.estado.trim().toUpperCase()
+        : undefined;
 
     if (sedeId !== undefined && Number.isNaN(sedeId)) {
-      throw new ReglaNegocioError("sedeId debe ser numérico", 400, "PARAMETRO_INVALIDO");
+      throw new ReglaNegocioError("sedeId debe ser numérico", "PARAMETRO_INVALIDO");
     }
 
     const plazas = await consultarPlazas(sedeId, estado);
@@ -37,10 +40,9 @@ router.get("/plazas", async (req: Request, res: Response, next: NextFunction) =>
 router.post("/reservas", async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { plazaId, placaVehiculo, horaInicio, horaFin } = req.body ?? {};
-    if (!plazaId || !placaVehiculo || !horaInicio || !horaFin) {
+    if (plazaId === undefined || plazaId === null || !placaVehiculo || !horaInicio || !horaFin) {
       throw new ReglaNegocioError(
         "plazaId, placaVehiculo, horaInicio y horaFin son obligatorios",
-        400,
         "DATOS_INCOMPLETOS"
       );
     }
@@ -62,17 +64,16 @@ router.post("/reservas", async (req: Request, res: Response, next: NextFunction)
 router.post("/estancias/check-in", async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { codigoReserva, placaVehiculo } = req.body ?? {};
-    if (!codigoReserva || !placaVehiculo) {
+    if (!codigoReserva && !placaVehiculo) {
       throw new ReglaNegocioError(
-        "codigoReserva y placaVehiculo son obligatorios",
-        400,
+        "Debe enviar codigoReserva o placaVehiculo",
         "DATOS_INCOMPLETOS"
       );
     }
 
     const resultado = await registrarCheckIn({
-      codigoReserva: String(codigoReserva),
-      placaVehiculo: String(placaVehiculo),
+      codigoReserva: codigoReserva ? String(codigoReserva) : undefined,
+      placaVehiculo: placaVehiculo ? String(placaVehiculo) : undefined,
     });
 
     res.status(201).json(resultado);
@@ -86,7 +87,7 @@ router.post("/estancias/check-out", async (req: Request, res: Response, next: Ne
   try {
     const { placaVehiculo } = req.body ?? {};
     if (!placaVehiculo) {
-      throw new ReglaNegocioError("placaVehiculo es obligatorio", 400, "DATOS_INCOMPLETOS");
+      throw new ReglaNegocioError("placaVehiculo es obligatorio", "DATOS_INCOMPLETOS");
     }
 
     const resultado = await registrarCheckOut({
@@ -103,10 +104,9 @@ router.post("/estancias/check-out", async (req: Request, res: Response, next: Ne
 router.post("/plazas", async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { sedeId, codigo, tipoVehiculo } = req.body ?? {};
-    if (!sedeId || !codigo || !tipoVehiculo) {
+    if (sedeId === undefined || sedeId === null || !codigo || !tipoVehiculo) {
       throw new ReglaNegocioError(
         "sedeId, codigo y tipoVehiculo son obligatorios",
-        400,
         "DATOS_INCOMPLETOS"
       );
     }
@@ -129,6 +129,7 @@ router.put("/tarifas", async (req: Request, res: Response, next: NextFunction) =
     const { sedeId, franjaInicio, franjaFin, tarifaBase, multiplicadorPico } = req.body ?? {};
     if (
       sedeId === undefined ||
+      sedeId === null ||
       !franjaInicio ||
       !franjaFin ||
       tarifaBase === undefined ||
@@ -136,7 +137,6 @@ router.put("/tarifas", async (req: Request, res: Response, next: NextFunction) =
     ) {
       throw new ReglaNegocioError(
         "sedeId, franjaInicio, franjaFin, tarifaBase y multiplicadorPico son obligatorios",
-        400,
         "DATOS_INCOMPLETOS"
       );
     }
