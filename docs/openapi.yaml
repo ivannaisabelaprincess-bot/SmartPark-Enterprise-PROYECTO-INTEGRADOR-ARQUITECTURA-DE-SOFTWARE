@@ -1,0 +1,159 @@
+openapi: 3.0.3
+info:
+  title: SmartPark Enterprise API
+  version: 1.0.0
+  description: >
+    API REST del monolito en capas para reserva de plazas, check-in con tolerancia de 15 minutos,
+    check-out con cálculo de tarifa y gestión de plazas/tarifas dinámicas.
+servers:
+  - url: http://localhost:3000/api/v1
+    description: Servidor local de desarrollo
+
+paths:
+  /health:
+    get:
+      summary: Verificar estado del servicio
+      responses:
+        "200":
+          description: Servicio activo
+
+  /plazas:
+    get:
+      summary: Consultar y filtrar plazas de parqueo
+      parameters:
+        - in: query
+          name: sedeId
+          schema:
+            type: integer
+        - in: query
+          name: estado
+          schema:
+            type: string
+            enum: [DISPONIBLE, RESERVADA, OCUPADA]
+      responses:
+        "200":
+          description: Lista de plazas consultadas
+    post:
+      summary: Crear una nueva plaza en una sede (CU-04)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sedeId, codigo, tipoVehiculo]
+              properties:
+                sedeId:
+                  type: integer
+                  example: 1
+                codigo:
+                  type: string
+                  example: "A-03"
+                tipoVehiculo:
+                  type: string
+                  example: "AUTO"
+      responses:
+        "201":
+          description: Plaza creada
+
+  /reservas:
+    post:
+      summary: Reservar espacio de parqueo evitando traslapes (CU-01 / R-01)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [plazaId, placaVehiculo, horaInicio, horaFin]
+              properties:
+                plazaId:
+                  type: integer
+                  example: 1
+                placaVehiculo:
+                  type: string
+                  example: "ABC-1234"
+                horaInicio:
+                  type: string
+                  format: date-time
+                  example: "2026-11-25T10:00:00.000Z"
+                horaFin:
+                  type: string
+                  format: date-time
+                  example: "2026-11-25T12:00:00.000Z"
+      responses:
+        "201":
+          description: Reserva confirmada y evento Reserva_Realizada emitido
+        "409":
+          description: Conflicto por traslape horario en la plaza
+
+  /estancias/check-in:
+    post:
+      summary: Registrar ingreso de vehículo con tolerancia de 15 minutos (CU-02 / R-02)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [codigoReserva, placaVehiculo]
+              properties:
+                codigoReserva:
+                  type: string
+                  example: "SP-123456-1"
+                placaVehiculo:
+                  type: string
+                  example: "ABC-1234"
+      responses:
+        "201":
+          description: Ingreso registrado y puesto marcado como OCUPADO
+        "409":
+          description: Reserva caducada por superar 15 minutos o estado inválido
+
+  /estancias/check-out:
+    post:
+      summary: Registrar salida, calcular tarifa y liberar puesto (CU-03)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [placaVehiculo]
+              properties:
+                placaVehiculo:
+                  type: string
+                  example: "ABC-1234"
+      responses:
+        "200":
+          description: Salida registrada, tarifa calculada y puesto DISPONIBLE
+
+  /tarifas:
+    put:
+      summary: Configurar tarifa base y multiplicador por sede (CU-04)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sedeId, franjaInicio, franjaFin, tarifaBase, multiplicadorPico]
+              properties:
+                sedeId:
+                  type: integer
+                  example: 1
+                franjaInicio:
+                  type: string
+                  example: "07:00:00"
+                franjaFin:
+                  type: string
+                  example: "19:00:00"
+                tarifaBase:
+                  type: number
+                  example: 2.0
+                multiplicadorPico:
+                  type: number
+                  example: 1.5
+      responses:
+        "200":
+          description: Tarifa actualizada para futuras reservas
