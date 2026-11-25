@@ -24,14 +24,14 @@
       color: var(--text);
       padding: 24px;
     }
-    .container { max-width: 1120px; margin: 0 auto; }
+    .container { max-width: 1080px; margin: 0 auto; }
     header {
       display: flex;
       flex-wrap: wrap;
       justify-content: space-between;
       align-items: center;
       gap: 12px;
-      margin-bottom: 24px;
+      margin-bottom: 22px;
       padding-bottom: 16px;
       border-bottom: 1px solid var(--border);
     }
@@ -53,14 +53,18 @@
     }
     .grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 18px;
+    }
+    @media (max-width: 780px) {
+      .grid { grid-template-columns: 1fr; }
     }
     .card {
       background: var(--card);
       border: 1px solid var(--border);
       border-radius: 12px;
       padding: 18px;
+      min-width: 0;
     }
     .card.full { grid-column: 1 / -1; }
     .card h2 {
@@ -70,6 +74,7 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
+      gap: 10px;
     }
     .plazas-grid {
       display: grid;
@@ -98,6 +103,7 @@
     label { display: block; font-size: 0.82rem; color: var(--muted); margin: 8px 0 4px; }
     input, select {
       width: 100%;
+      min-width: 0;
       padding: 9px 10px;
       border-radius: 8px;
       border: 1px solid var(--border);
@@ -105,10 +111,18 @@
       color: var(--text);
       font-size: 0.9rem;
     }
-    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .row {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .row > div { min-width: 0; }
+    @media (max-width: 520px) {
+      .row { grid-template-columns: 1fr; }
+    }
     button {
       margin-top: 12px;
-      padding: 9px 14px;
+      padding: 10px 14px;
       border: none;
       border-radius: 8px;
       background: var(--primary-dark);
@@ -126,6 +140,30 @@
       background: #334155;
     }
     button.secondary:hover { background: #475569; color: white; }
+    .status-pill {
+      font-size: 0.78rem;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: #334155;
+      color: #e2e8f0;
+      font-weight: 600;
+    }
+    .status-pill.ok { background: rgba(34, 197, 94, 0.2); color: #86efac; }
+    .status-pill.err { background: rgba(239, 68, 68, 0.2); color: #fca5a5; }
+    .resumen-msg {
+      margin-top: 8px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      background: rgba(56, 189, 248, 0.12);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      color: #e0f2fe;
+    }
+    .resumen-msg.err {
+      background: rgba(239, 68, 68, 0.12);
+      border-color: rgba(239, 68, 68, 0.35);
+      color: #fecaca;
+    }
     pre {
       background: #020617;
       border: 1px solid var(--border);
@@ -135,7 +173,7 @@
       font-size: 0.82rem;
       color: #cbd5e1;
       margin: 10px 0 0;
-      max-height: 220px;
+      max-height: 240px;
     }
   </style>
 </head>
@@ -156,16 +194,14 @@
           <span>Plazas de Parqueo (Tiempo Real)</span>
           <button type="button" class="secondary" onclick="cargarPlazas()">Actualizar</button>
         </h2>
-        <div class="row" style="max-width: 420px;">
-          <div>
-            <label for="filtroEstado">Filtrar por estado</label>
-            <select id="filtroEstado" onchange="cargarPlazas()">
-              <option value="">Todos</option>
-              <option value="DISPONIBLE">DISPONIBLE</option>
-              <option value="RESERVADA">RESERVADA</option>
-              <option value="OCUPADA">OCUPADA</option>
-            </select>
-          </div>
+        <div style="max-width: 240px;">
+          <label for="filtroEstado">Filtrar tarjetas por estado</label>
+          <select id="filtroEstado" onchange="cargarPlazas()">
+            <option value="">Todos</option>
+            <option value="DISPONIBLE">DISPONIBLE</option>
+            <option value="RESERVADA">RESERVADA</option>
+            <option value="OCUPADA">OCUPADA</option>
+          </select>
         </div>
         <div id="plazasContainer" class="plazas-grid"></div>
       </section>
@@ -174,20 +210,14 @@
       <section class="card">
         <h2>CU-01 · Reservar Plaza (R-01)</h2>
         <form onsubmit="reservarPlaza(event)">
-          <label for="resPlazaId">Plaza</label>
+          <label for="resPlazaId">Plaza a reservar</label>
           <select id="resPlazaId" required></select>
           <label for="resPlaca">Placa del vehículo</label>
           <input id="resPlaca" type="text" value="ABC-1234" required />
-          <div class="row">
-            <div>
-              <label for="resInicio">Hora inicio</label>
-              <input id="resInicio" type="datetime-local" required />
-            </div>
-            <div>
-              <label for="resFin">Hora fin</label>
-              <input id="resFin" type="datetime-local" required />
-            </div>
-          </div>
+          <label for="resInicio">Hora inicio</label>
+          <input id="resInicio" type="datetime-local" required />
+          <label for="resFin">Hora fin</label>
+          <input id="resFin" type="datetime-local" required />
           <button type="submit">Confirmar Reserva</button>
         </form>
       </section>
@@ -202,10 +232,9 @@
           <input id="inPlaca" type="text" value="ABC-1234" />
           <button type="submit">Registrar Check-in</button>
         </form>
-      </section>
 
-      <!-- CU-03: Check-out -->
-      <section class="card">
+        <hr style="border: 0; border-top: 1px solid var(--border); margin: 18px 0;" />
+
         <h2>CU-03 · Registrar Salida y Tarifa</h2>
         <form onsubmit="hacerCheckOut(event)">
           <label for="outPlaca">Placa del vehículo</label>
@@ -214,9 +243,9 @@
         </form>
       </section>
 
-      <!-- CU-04: Gestión de plazas y tarifas -->
+      <!-- CU-04: Gestión de plazas -->
       <section class="card">
-        <h2>CU-04 · Nueva Plaza y Tarifa Dinámica</h2>
+        <h2>CU-04 · Crear Nueva Plaza</h2>
         <form onsubmit="crearPlaza(event)">
           <div class="row">
             <div>
@@ -230,8 +259,12 @@
           </div>
           <button type="submit">Crear Plaza</button>
         </form>
+      </section>
 
-        <form onsubmit="actualizarTarifa(event)" style="margin-top: 14px; border-top: 1px solid var(--border); padding-top: 10px;">
+      <!-- CU-04: Tarifas dinámicas -->
+      <section class="card">
+        <h2>CU-04 · Tarifa Dinámica (Sede Centro)</h2>
+        <form onsubmit="actualizarTarifa(event)">
           <div class="row">
             <div>
               <label for="tarBase">Tarifa base ($/h)</label>
@@ -258,8 +291,14 @@
 
       <!-- Consola de respuestas HTTP -->
       <section class="card full">
-        <h2>Última respuesta del servidor (<span id="ultimoStatus">—</span>)</h2>
-        <pre id="respuestaJson">Ejecuta una acción para ver la respuesta JSON real de la API...</pre>
+        <h2>
+          <span>Última respuesta del servidor</span>
+          <span id="ultimoStatus" class="status-pill">Sin acciones aún</span>
+        </h2>
+        <div id="resumenMsg" class="resumen-msg">
+          Ejecuta una acción arriba para ver el resultado y la respuesta JSON de tu API.
+        </div>
+        <pre id="respuestaJson">{}</pre>
       </section>
     </div>
   </div>
@@ -279,8 +318,33 @@
       document.getElementById("resFin").value = aInputLocal(en2h);
     }
 
-    function mostrarRespuesta(status, data) {
-      document.getElementById("ultimoStatus").textContent = `HTTP ${status}`;
+    function mostrarRespuesta(status, ok, data) {
+      const pill = document.getElementById("ultimoStatus");
+      const resumen = document.getElementById("resumenMsg");
+
+      pill.textContent = `HTTP ${status}`;
+      pill.className = `status-pill ${ok ? "ok" : "err"}`;
+
+      if (ok) {
+        if (data.eventoDominio === "Reserva_Realizada") {
+          resumen.textContent = `Reserva confirmada (${data.reserva.codigo_reserva}). Se copió automáticamente al Check-in.`;
+        } else if (data.eventoDominio === "Vehiculo_Ingresado") {
+          resumen.textContent = `Ingreso registrado (Vehiculo_Ingresado). La plaza pasó a OCUPADA.`;
+        } else if (data.eventoDominio === "Vehiculo_Salio") {
+          resumen.textContent = `Salida registrada (Vehiculo_Salio). Total a pagar: $${data.montoCalculado} (${data.horasCobrables}h). Plaza liberada a DISPONIBLE.`;
+        } else if (data.plaza) {
+          resumen.textContent = `Plaza ${data.plaza.codigo} creada correctamente en estado DISPONIBLE.`;
+        } else if (data.tarifa) {
+          resumen.textContent = `Tarifa actualizada ($${data.tarifa.tarifa_base}/h, pico x${data.tarifa.multiplicador_pico}). ${data.nota}`;
+        } else {
+          resumen.textContent = "Operación completada correctamente.";
+        }
+        resumen.className = "resumen-msg";
+      } else {
+        resumen.textContent = `Error ${data.error || status}: ${data.mensaje || "Revisa los datos enviados."}`;
+        resumen.className = "resumen-msg err";
+      }
+
       document.getElementById("respuestaJson").textContent = JSON.stringify(data, null, 2);
     }
 
@@ -290,7 +354,7 @@
         ...opciones,
       });
       const data = await res.json();
-      mostrarRespuesta(res.status, data);
+      mostrarRespuesta(res.status, res.ok, data);
       return { ok: res.ok, status: res.status, data };
     }
 
@@ -310,18 +374,18 @@
 
     async function cargarPlazas() {
       const estado = document.getElementById("filtroEstado").value;
-      const query = estado ? `?sedeId=1&estado=${estado}` : "?sedeId=1";
-      const res = await fetch(`${API}/plazas${query}`);
-      const data = await res.json();
+      const queryTarjetas = estado ? `?sedeId=1&estado=${estado}` : "?sedeId=1";
+
+      const [resTarjetas, resTodas] = await Promise.all([
+        fetch(`${API}/plazas${queryTarjetas}`),
+        fetch(`${API}/plazas?sedeId=1`),
+      ]);
+      const dataTarjetas = await resTarjetas.json();
+      const dataTodas = await resTodas.json();
 
       const cont = document.getElementById("plazasContainer");
-      const select = document.getElementById("resPlazaId");
       cont.innerHTML = "";
-
-      const seleccionPrevia = select.value;
-      if (!estado) select.innerHTML = "";
-
-      for (const p of data.plazas || []) {
+      for (const p of dataTarjetas.plazas || []) {
         const div = document.createElement("div");
         div.className = "plaza-box";
         div.innerHTML = `
@@ -330,17 +394,24 @@
           <span class="estado ${p.estado}">${p.estado}</span>
         `;
         cont.appendChild(div);
-
-        if (!estado) {
-          const opt = document.createElement("option");
-          opt.value = p.id;
-          opt.textContent = `${p.codigo} (${p.tipo_vehiculo} - ${p.estado})`;
-          select.appendChild(opt);
-        }
       }
 
-      if (seleccionPrevia && !estado) {
+      const select = document.getElementById("resPlazaId");
+      const seleccionPrevia = select.value;
+      select.innerHTML = "";
+      const todas = dataTodas.plazas || [];
+      for (const p of todas) {
+        const opt = document.createElement("option");
+        opt.value = p.id;
+        opt.textContent = `${p.codigo} (${p.tipo_vehiculo} · ${p.estado})`;
+        select.appendChild(opt);
+      }
+
+      if (seleccionPrevia && todas.some((p) => String(p.id) === seleccionPrevia)) {
         select.value = seleccionPrevia;
+      } else {
+        const primeraLibre = todas.find((p) => p.estado === "DISPONIBLE");
+        if (primeraLibre) select.value = String(primeraLibre.id);
       }
     }
 
