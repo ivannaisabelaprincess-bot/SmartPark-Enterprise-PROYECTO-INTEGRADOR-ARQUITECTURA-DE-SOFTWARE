@@ -38,6 +38,24 @@ CREATE TABLE IF NOT EXISTS reservas (
   creada_en TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+ALTER TABLE reservas
+  ADD COLUMN IF NOT EXISTS tarifa_base_aplicada NUMERIC(10, 2) NOT NULL DEFAULT 1.50,
+  ADD COLUMN IF NOT EXISTS multiplicador_aplicado NUMERIC(5, 2) NOT NULL DEFAULT 1.00;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'reservas'
+      AND column_name = 'hora_inicio' AND data_type = 'timestamp without time zone'
+  ) THEN
+    ALTER TABLE reservas
+      ALTER COLUMN hora_inicio TYPE TIMESTAMPTZ USING hora_inicio AT TIME ZONE 'America/Guayaquil',
+      ALTER COLUMN hora_fin TYPE TIMESTAMPTZ USING hora_fin AT TIME ZONE 'America/Guayaquil',
+      ALTER COLUMN creada_en TYPE TIMESTAMPTZ USING creada_en AT TIME ZONE 'America/Guayaquil';
+  END IF;
+END $$;
+
 CREATE INDEX IF NOT EXISTS idx_reservas_plaza_estado
   ON reservas (plaza_id, estado, hora_inicio, hora_fin);
 
@@ -52,6 +70,19 @@ CREATE TABLE IF NOT EXISTS estancias (
   estado VARCHAR(20) NOT NULL DEFAULT 'ACTIVA'
     CHECK (estado IN ('ACTIVA', 'FINALIZADA'))
 );
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'estancias'
+      AND column_name = 'check_in_en' AND data_type = 'timestamp without time zone'
+  ) THEN
+    ALTER TABLE estancias
+      ALTER COLUMN check_in_en TYPE TIMESTAMPTZ USING check_in_en AT TIME ZONE 'America/Guayaquil',
+      ALTER COLUMN check_out_en TYPE TIMESTAMPTZ USING check_out_en AT TIME ZONE 'America/Guayaquil';
+  END IF;
+END $$;
 
 -- Datos sintéticos iniciales (R-03: sin datos personales reales)
 INSERT INTO sedes (nombre, ciudad, tolerancia_minutos)
