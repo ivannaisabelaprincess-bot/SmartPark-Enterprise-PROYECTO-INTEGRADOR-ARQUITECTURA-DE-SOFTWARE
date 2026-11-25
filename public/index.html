@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SmartPark Enterprise | Panel Operativo</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --border: #334155;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --primary: #38bdf8;
+      --primary-dark: #0284c7;
+      --ok: #22c55e;
+      --warn: #f59e0b;
+      --danger: #ef4444;
+    }
+    * { box-sizing: border-box; font-family: "Segoe UI", system-ui, sans-serif; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      padding: 24px;
+    }
+    .container { max-width: 1120px; margin: 0 auto; }
+    header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    header h1 { margin: 0; font-size: 1.5rem; }
+    header p { margin: 4px 0 0; color: var(--muted); font-size: 0.9rem; }
+    .badge {
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      background: rgba(34, 197, 94, 0.15);
+      color: #86efac;
+      border: 1px solid rgba(34, 197, 94, 0.35);
+    }
+    .badge.error {
+      background: rgba(239, 68, 68, 0.15);
+      color: #fca5a5;
+      border-color: rgba(239, 68, 68, 0.35);
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 18px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px;
+    }
+    .card.full { grid-column: 1 / -1; }
+    .card h2 {
+      margin: 0 0 12px;
+      font-size: 1.05rem;
+      color: var(--primary);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .plazas-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 12px;
+      margin-top: 12px;
+    }
+    .plaza-box {
+      padding: 12px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: rgba(15, 23, 42, 0.65);
+    }
+    .plaza-box strong { display: block; font-size: 1.1rem; }
+    .plaza-box small { color: var(--muted); display: block; margin: 4px 0 8px; }
+    .estado {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+    .DISPONIBLE { background: rgba(34, 197, 94, 0.2); color: #86efac; }
+    .RESERVADA { background: rgba(245, 158, 11, 0.2); color: #fcd34d; }
+    .OCUPADA { background: rgba(239, 68, 68, 0.2); color: #fca5a5; }
+    label { display: block; font-size: 0.82rem; color: var(--muted); margin: 8px 0 4px; }
+    input, select {
+      width: 100%;
+      padding: 9px 10px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: #0f172a;
+      color: var(--text);
+      font-size: 0.9rem;
+    }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    button {
+      margin-top: 12px;
+      padding: 9px 14px;
+      border: none;
+      border-radius: 8px;
+      background: var(--primary-dark);
+      color: white;
+      font-weight: 600;
+      cursor: pointer;
+      width: 100%;
+    }
+    button:hover { background: var(--primary); color: #0f172a; }
+    button.secondary {
+      width: auto;
+      margin-top: 0;
+      padding: 6px 12px;
+      font-size: 0.8rem;
+      background: #334155;
+    }
+    button.secondary:hover { background: #475569; color: white; }
+    pre {
+      background: #020617;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      overflow-x: auto;
+      font-size: 0.82rem;
+      color: #cbd5e1;
+      margin: 10px 0 0;
+      max-height: 220px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <h1>SmartPark Enterprise</h1>
+        <p>Panel web ligero (Capa de Presentación) — Monolito en capas con Express + PostgreSQL</p>
+      </div>
+      <span id="apiStatus" class="badge">Verificando API...</span>
+    </header>
+
+    <div class="grid">
+      <!-- Consulta en tiempo real -->
+      <section class="card full">
+        <h2>
+          <span>Plazas de Parqueo (Tiempo Real)</span>
+          <button type="button" class="secondary" onclick="cargarPlazas()">Actualizar</button>
+        </h2>
+        <div class="row" style="max-width: 420px;">
+          <div>
+            <label for="filtroEstado">Filtrar por estado</label>
+            <select id="filtroEstado" onchange="cargarPlazas()">
+              <option value="">Todos</option>
+              <option value="DISPONIBLE">DISPONIBLE</option>
+              <option value="RESERVADA">RESERVADA</option>
+              <option value="OCUPADA">OCUPADA</option>
+            </select>
+          </div>
+        </div>
+        <div id="plazasContainer" class="plazas-grid"></div>
+      </section>
+
+      <!-- CU-01: Reservar espacio -->
+      <section class="card">
+        <h2>CU-01 · Reservar Plaza (R-01)</h2>
+        <form onsubmit="reservarPlaza(event)">
+          <label for="resPlazaId">Plaza</label>
+          <select id="resPlazaId" required></select>
+          <label for="resPlaca">Placa del vehículo</label>
+          <input id="resPlaca" type="text" value="ABC-1234" required />
+          <div class="row">
+            <div>
+              <label for="resInicio">Hora inicio</label>
+              <input id="resInicio" type="datetime-local" required />
+            </div>
+            <div>
+              <label for="resFin">Hora fin</label>
+              <input id="resFin" type="datetime-local" required />
+            </div>
+          </div>
+          <button type="submit">Confirmar Reserva</button>
+        </form>
+      </section>
+
+      <!-- CU-02: Check-in -->
+      <section class="card">
+        <h2>CU-02 · Registrar Ingreso (R-02)</h2>
+        <form onsubmit="hacerCheckIn(event)">
+          <label for="inCodigo">Código de reserva (opcional si envías placa)</label>
+          <input id="inCodigo" type="text" placeholder="Ej. SP-..." />
+          <label for="inPlaca">Placa del vehículo</label>
+          <input id="inPlaca" type="text" value="ABC-1234" />
+          <button type="submit">Registrar Check-in</button>
+        </form>
+      </section>
+
+      <!-- CU-03: Check-out -->
+      <section class="card">
+        <h2>CU-03 · Registrar Salida y Tarifa</h2>
+        <form onsubmit="hacerCheckOut(event)">
+          <label for="outPlaca">Placa del vehículo</label>
+          <input id="outPlaca" type="text" value="ABC-1234" required />
+          <button type="submit">Registrar Check-out y Calcular</button>
+        </form>
+      </section>
+
+      <!-- CU-04: Gestión de plazas y tarifas -->
+      <section class="card">
+        <h2>CU-04 · Nueva Plaza y Tarifa Dinámica</h2>
+        <form onsubmit="crearPlaza(event)">
+          <div class="row">
+            <div>
+              <label for="newCodigo">Código plaza</label>
+              <input id="newCodigo" type="text" placeholder="Ej. B-01" required />
+            </div>
+            <div>
+              <label for="newTipo">Tipo vehículo</label>
+              <input id="newTipo" type="text" value="AUTO" required />
+            </div>
+          </div>
+          <button type="submit">Crear Plaza</button>
+        </form>
+
+        <form onsubmit="actualizarTarifa(event)" style="margin-top: 14px; border-top: 1px solid var(--border); padding-top: 10px;">
+          <div class="row">
+            <div>
+              <label for="tarBase">Tarifa base ($/h)</label>
+              <input id="tarBase" type="number" step="0.1" min="0" value="2.0" required />
+            </div>
+            <div>
+              <label for="tarMult">Multiplicador pico</label>
+              <input id="tarMult" type="number" step="0.1" min="1" value="1.5" required />
+            </div>
+          </div>
+          <div class="row">
+            <div>
+              <label for="tarIni">Franja inicio</label>
+              <input id="tarIni" type="text" value="07:00:00" required />
+            </div>
+            <div>
+              <label for="tarFin">Franja fin</label>
+              <input id="tarFin" type="text" value="19:00:00" required />
+            </div>
+          </div>
+          <button type="submit">Actualizar Tarifa</button>
+        </form>
+      </section>
+
+      <!-- Consola de respuestas HTTP -->
+      <section class="card full">
+        <h2>Última respuesta del servidor (<span id="ultimoStatus">—</span>)</h2>
+        <pre id="respuestaJson">Ejecuta una acción para ver la respuesta JSON real de la API...</pre>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    const API = "/api/v1";
+
+    function aInputLocal(fecha) {
+      const offset = fecha.getTimezoneOffset() * 60000;
+      return new Date(fecha.getTime() - offset).toISOString().slice(0, 16);
+    }
+
+    function inicializarFechas() {
+      const ahora = new Date();
+      const en2h = new Date(ahora.getTime() + 2 * 60 * 60 * 1000);
+      document.getElementById("resInicio").value = aInputLocal(ahora);
+      document.getElementById("resFin").value = aInputLocal(en2h);
+    }
+
+    function mostrarRespuesta(status, data) {
+      document.getElementById("ultimoStatus").textContent = `HTTP ${status}`;
+      document.getElementById("respuestaJson").textContent = JSON.stringify(data, null, 2);
+    }
+
+    async function llamarApi(ruta, opciones = {}) {
+      const res = await fetch(`${API}${ruta}`, {
+        headers: { "Content-Type": "application/json" },
+        ...opciones,
+      });
+      const data = await res.json();
+      mostrarRespuesta(res.status, data);
+      return { ok: res.ok, status: res.status, data };
+    }
+
+    async function verificarSalud() {
+      const badge = document.getElementById("apiStatus");
+      try {
+        const res = await fetch(`${API}/health`);
+        if (res.ok) {
+          badge.textContent = "API Conectada";
+          badge.classList.remove("error");
+          return;
+        }
+      } catch (_) {}
+      badge.textContent = "API Desconectada";
+      badge.classList.add("error");
+    }
+
+    async function cargarPlazas() {
+      const estado = document.getElementById("filtroEstado").value;
+      const query = estado ? `?sedeId=1&estado=${estado}` : "?sedeId=1";
+      const res = await fetch(`${API}/plazas${query}`);
+      const data = await res.json();
+
+      const cont = document.getElementById("plazasContainer");
+      const select = document.getElementById("resPlazaId");
+      cont.innerHTML = "";
+
+      const seleccionPrevia = select.value;
+      if (!estado) select.innerHTML = "";
+
+      for (const p of data.plazas || []) {
+        const div = document.createElement("div");
+        div.className = "plaza-box";
+        div.innerHTML = `
+          <strong>${p.codigo}</strong>
+          <small>ID: ${p.id} · ${p.tipo_vehiculo}</small>
+          <span class="estado ${p.estado}">${p.estado}</span>
+        `;
+        cont.appendChild(div);
+
+        if (!estado) {
+          const opt = document.createElement("option");
+          opt.value = p.id;
+          opt.textContent = `${p.codigo} (${p.tipo_vehiculo} - ${p.estado})`;
+          select.appendChild(opt);
+        }
+      }
+
+      if (seleccionPrevia && !estado) {
+        select.value = seleccionPrevia;
+      }
+    }
+
+    async function reservarPlaza(e) {
+      e.preventDefault();
+      const body = {
+        plazaId: Number(document.getElementById("resPlazaId").value),
+        placaVehiculo: document.getElementById("resPlaca").value,
+        horaInicio: new Date(document.getElementById("resInicio").value).toISOString(),
+        horaFin: new Date(document.getElementById("resFin").value).toISOString(),
+      };
+      const r = await llamarApi("/reservas", { method: "POST", body: JSON.stringify(body) });
+      if (r.ok && r.data.reserva) {
+        document.getElementById("inCodigo").value = r.data.reserva.codigo_reserva;
+        document.getElementById("inPlaca").value = r.data.reserva.placa_vehiculo;
+        document.getElementById("outPlaca").value = r.data.reserva.placa_vehiculo;
+      }
+      await cargarPlazas();
+    }
+
+    async function hacerCheckIn(e) {
+      e.preventDefault();
+      const codigo = document.getElementById("inCodigo").value.trim();
+      const placa = document.getElementById("inPlaca").value.trim();
+      await llamarApi("/estancias/check-in", {
+        method: "POST",
+        body: JSON.stringify({
+          ...(codigo ? { codigoReserva: codigo } : {}),
+          ...(placa ? { placaVehiculo: placa } : {}),
+        }),
+      });
+      await cargarPlazas();
+    }
+
+    async function hacerCheckOut(e) {
+      e.preventDefault();
+      const placa = document.getElementById("outPlaca").value.trim();
+      await llamarApi("/estancias/check-out", {
+        method: "POST",
+        body: JSON.stringify({ placaVehiculo: placa }),
+      });
+      await cargarPlazas();
+    }
+
+    async function crearPlaza(e) {
+      e.preventDefault();
+      const body = {
+        sedeId: 1,
+        codigo: document.getElementById("newCodigo").value,
+        tipoVehiculo: document.getElementById("newTipo").value,
+      };
+      const r = await llamarApi("/plazas", { method: "POST", body: JSON.stringify(body) });
+      if (r.ok) document.getElementById("newCodigo").value = "";
+      await cargarPlazas();
+    }
+
+    async function actualizarTarifa(e) {
+      e.preventDefault();
+      const body = {
+        sedeId: 1,
+        franjaInicio: document.getElementById("tarIni").value,
+        franjaFin: document.getElementById("tarFin").value,
+        tarifaBase: Number(document.getElementById("tarBase").value),
+        multiplicadorPico: Number(document.getElementById("tarMult").value),
+      };
+      await llamarApi("/tarifas", { method: "PUT", body: JSON.stringify(body) });
+    }
+
+    inicializarFechas();
+    verificarSalud();
+    cargarPlazas();
+  </script>
+</body>
+</html>

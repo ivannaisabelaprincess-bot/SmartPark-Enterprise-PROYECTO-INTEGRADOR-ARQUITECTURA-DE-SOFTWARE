@@ -1,4 +1,5 @@
 import express, { Request, Response, NextFunction } from "express";
+import { fileURLToPath } from "node:url";
 import dotenv from "dotenv";
 import { router } from "./routes.js";
 import {
@@ -8,6 +9,8 @@ import {
 } from "../application/parkService.js";
 
 dotenv.config();
+
+const DIRECTORIO_PUBLICO = fileURLToPath(new URL("../../public", import.meta.url));
 
 const MAPA_ESTADOS_HTTP: Record<CodigoErrorDominio, number> = {
   DATOS_INCOMPLETOS: 400,
@@ -29,6 +32,7 @@ const MAPA_ESTADOS_HTTP: Record<CodigoErrorDominio, number> = {
 
 export const app = express();
 app.use(express.json());
+app.use(express.static(DIRECTORIO_PUBLICO));
 app.use("/api/v1", router);
 
 // Manejador centralizado de errores (mapeo de errores de dominio a códigos HTTP)

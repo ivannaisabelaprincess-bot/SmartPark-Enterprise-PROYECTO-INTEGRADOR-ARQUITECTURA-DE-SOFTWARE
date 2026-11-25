@@ -33,6 +33,15 @@ describe("SmartPark Enterprise API - Pruebas HTTP de rutas (Presentación -> Apl
     });
   });
 
+  it("GET / sirve el panel web frontend (public/index.html)", async () => {
+    const rootUrl = baseUrl.replace("/api/v1", "");
+    const res = await fetch(`${rootUrl}/`);
+    const html = await res.text();
+
+    expect(res.status).toBe(200);
+    expect(html).toContain("SmartPark Enterprise");
+  });
+
   it("GET /health responde 200 con estado ok", async () => {
     const res = await fetch(`${baseUrl}/health`);
     const body = await res.json();

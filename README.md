@@ -9,8 +9,10 @@ Backend monolítico organizado en **3 capas** (**Presentación**, **Aplicación*
 Las dependencias fluyen estrictamente de forma descendente (**Presentación -> Aplicación -> Persistencia**), sin atajos entre capas ni lógica de negocio o SQL en los controladores:
 
 - `src/presentation/`:
-  - `server.ts`: configuración de Express, middleware de errores de dominio -> HTTP y arranque del servidor (solo invoca a la capa de aplicación).
+  - `server.ts`: configuración de Express, servidor de archivos estáticos (`public/`), middleware de errores de dominio -> HTTP y arranque del servidor (solo invoca a la capa de aplicación).
   - `routes.ts`: rutas HTTP (`/api/v1/*`) y validación básica de presencia de parámetros.
+- `public/`:
+  - `index.html`: panel web ligero (cliente HTTP dentro de la capa de presentación) que consume únicamente `/api/v1/*` vía `fetch` para demostrar visualmente `CU-01` a `CU-04`.
 - `src/application/`:
   - `parkService.ts`: casos de uso (`CU-01` a `CU-04`), reglas de negocio (`R-01`, `R-02`), cálculo tarifario dinámico y recargos por exceso.
 - `src/persistence/`:
@@ -72,7 +74,9 @@ Las dependencias fluyen estrictamente de forma descendente (**Presentación -> A
      ```bash
      npm start
      ```
-   El servidor quedará disponible en `http://localhost:3000/api/v1`.
+   El servidor quedará disponible en:
+   - **Panel Web (Frontend ligero):** `http://localhost:3000/`
+   - **API REST:** `http://localhost:3000/api/v1` (por ejemplo `http://localhost:3000/api/v1/health`)
 
 ---
 
